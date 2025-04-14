@@ -1,0 +1,67 @@
+# Install required libraries
+!pip install scikit-learn gradio pandas numpy
+
+# Import libraries
+import gradio as gr
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Custom dataset representing individuals and their likelihood to buy a car
+car_data = {
+    "Age": [22, 25, 47, 52, 46, 56, 55, 60, 62, 61, 18, 24, 29, 45, 57, 53, 35, 44, 50, 38],
+    "Income": [15000, 18000, 45000, 54000, 42000, 59000, 57000, 60000, 62000, 61000, 12000, 17000, 23000, 48000, 62000, 58000, 32000, 48000, 53000, 37000],
+    "CreditRating": [600, 650, 720, 700, 690, 710, 680, 730, 740, 750, 590, 640, 620, 710, 730, 700, 670, 690, 720, 650],
+    "Sex": ["Male", "Female", "Female", "Male", "Male", "Female", "Male", "Female", "Female", "Male",
+            "Male", "Female", "Female", "Male", "Female", "Male", "Female", "Male", "Female", "Female"],
+    "WillBuy": [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0]
+}
+
+# Load into DataFrame
+df = pd.DataFrame(car_data)
+
+# Encode gender: Male -> 1, Female -> 0
+df["Sex"] = [1 if g == "Male" else 0 for g in df["Sex"]]
+
+# Separate input features and labels
+features = df.drop("WillBuy", axis=1)
+labels = df["WillBuy"]
+
+# Split the dataset
+X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=1)
+
+# Normalize the data
+normalizer = StandardScaler()
+X_train = normalizer.fit_transform(X_train)
+X_test = normalizer.transform(X_test)
+
+# Train logistic model
+classifier = LogisticRegression(max_iter=200)
+classifier.fit(X_train, y_train)
+
+# Define function to predict car purchase
+def will_they_buy(age, salary, credit, sex):
+    gender_val = 1 if sex.lower() == "male" else 0
+    person = np.array([[age, salary, credit, gender_val]])
+    person_scaled = normalizer.transform(person)
+    outcome = classifier.predict(person_scaled)[0]
+    return "✅ Eligible & Likely to Buy a Car" if outcome == 1 else "❌ Not Likely to Purchase"
+
+# Build interactive app using Gradio
+demo = gr.Interface(
+    fn=will_they_buy,
+    inputs=[
+        gr.Number(label="Customer Age"),
+        gr.Number(label="Annual Salary ($)"),
+        gr.Number(label="Credit Score"),
+        gr.Radio(choices=["Male", "Female"], label="Gender")
+    ],
+    outputs=gr.Textbox(label="Prediction"),
+    title="🚘 Car Purchase Likelihood Estimator",
+    description="Provide details to estimate if the customer is likely to buy a car based on their profile."
+)
+
+# Launch the application
+demo.launch()
