@@ -1,0 +1,59 @@
+# Install required packages (only needed for local/Colab)
+# !pip install scikit-learn gradio
+!pip install gradio
+import gradio as gr
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+
+# Load Iris dataset
+iris = load_iris()
+X, y = iris.data, iris.target
+feature_names = iris.feature_names
+class_names = iris.target_names
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Logistic Regression Model
+model = LogisticRegression(max_iter=200)
+model.fit(X_train_scaled, y_train)
+accuracy = model.score(X_test_scaled, y_test)
+
+# Prediction function with probability
+def predict_species(sepal_length, sepal_width, petal_length, petal_width):
+    user_input = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
+    user_input_scaled = scaler.transform(user_input)
+    prediction = model.predict(user_input_scaled)[0]
+    probability = model.predict_proba(user_input_scaled)[0][prediction]
+    species = class_names[prediction]
+    return f"🌸 **Predicted Species:** {species}\n🔍 **Confidence:** {probability * 100:.2f}%"
+
+# Gradio interface
+interface = gr.Interface(
+    fn=predict_species,
+    inputs=[
+        gr.Slider(minimum=4.0, maximum=8.0, step=0.1, label="Sepal Length (cm)"),
+        gr.Slider(minimum=2.0, maximum=4.5, step=0.1, label="Sepal Width (cm)"),
+        gr.Slider(minimum=1.0, maximum=7.0, step=0.1, label="Petal Length (cm)"),
+        gr.Slider(minimum=0.1, maximum=2.5, step=0.1, label="Petal Width (cm)")
+    ],
+    outputs=gr.Markdown(),
+    title="🌺 Iris Flower Species Predictor",
+    description=f"""
+Enter the dimensions of a flower below to predict its species.
+The model is trained on the Iris dataset using Logistic Regression.
+
+🧠 **Model Accuracy:** {accuracy * 100:.2f}%
+"""
+)
+
+# Launch app
+interface.launch()
